@@ -354,13 +354,15 @@ Save this file as `index.html` in the root directory of your project (same level
 
 ## Setting Up Vercel Configuration
 
-### Creating vercel.json
-Create a [`vercel.json`](vercel.json:1) file in your project root to configure Vercel-specific settings:
+### Creating vercel.json for Vite with Path Aliases
+
+When deploying Vite projects that use path aliases (like `@core/`, `@components/`, `@utils/`), you need a proper [`vercel.json`](vercel.json:1) configuration. This is crucial because Vercel needs to understand how to build your Vite project correctly and resolve the path aliases during the build process.
+
+Create a [`vercel.json`](vercel.json:1) file in your project root:
 
 ```json
 {
   "version": 2,
-  "name": "client-side-pdf-processor",
   "builds": [
     {
       "src": "package.json",
@@ -370,10 +372,23 @@ Create a [`vercel.json`](vercel.json:1) file in your project root to configure V
       }
     }
   ],
-  "routes": [
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "devCommand": "npm run dev -- --port $PORT",
+  "framework": {
+    "name": "vite"
+  },
+  "functions": {
+    "src/**/*.js": {
+      "runtime": "nodejs18.x",
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [
@@ -394,51 +409,67 @@ Create a [`vercel.json`](vercel.json:1) file in your project root to configure V
           "value": "public, max-age=31536000, immutable"
         }
       ]
-    },
-    {
-      "source": "/(.*\\.css)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "X-XSS-Protection",
-          "value": "1; mode=block"
-        }
-      ]
     }
   ],
-  "functions": {},
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ],
-  "cleanUrls": true,
-  "trailingSlash": false
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "github": {
+    "silent": false
+  }
 }
 ```
 
-### Configuration Explanation
-- **SPA Routing**: The routes and rewrites ensure all paths serve `index.html` for client-side routing
-- **Cache Headers**: Optimize caching for static assets (1 year for immutable assets)
-- **Security Headers**: Add security headers for protection
-- **Build Configuration**: Specifies the build output directory as `dist`
+### Why This Configuration is Needed for Path Aliases
+
+The key difference from a standard static site deployment is the explicit framework configuration:
+
+1. **Framework Detection**: `"framework": { "name": "vite" }` tells Vercel this is a Vite project, enabling Vite-specific build optimizations
+
+2. **Static Build Builder**: Using `"@vercel/static-build"` ensures Vercel properly handles Vite's build process, including:
+   - Path alias resolution
+   - Module bundling
+   - Asset optimization
+   - Source map generation
+
+3. **Build Command Specification**: Explicitly defining `buildCommand` and `outputDirectory` ensures Vercel uses the correct build settings from your [`vite.config.js`](vite.config.js:1)
+
+### How This Prevents "Could Not Load" Errors
+
+Without this configuration, you might encounter errors like:
+```
+Could not load @core/pdfProcessor (imported by src/index.js)
+Could not load @components/FileUpload (imported by src/index.js)
+```
+
+This happens because:
+1. Vercel's default build process doesn't recognize Vite's path aliases
+2. The aliases defined in [`vite.config.js`](vite.config.js:40-48) need to be respected during the Vercel build
+3. The `@vercel/static-build` builder ensures Vite's configuration is properly applied
+
+### Path Aliases in Your Project
+
+Your project uses these path aliases (defined in [`vite.config.js`](vite.config.js:40-48)):
+```javascript
+resolve: {
+  alias: {
+    '@': path.resolve(__dirname, 'src'),
+    '@components': path.resolve(__dirname, 'src/components'),
+    '@core': path.resolve(__dirname, 'src/core'),
+    '@utils': path.resolve(__dirname, 'src/utils'),
+    '@assets': path.resolve(__dirname, 'src/assets'),
+  },
+}
+```
+
+The [`vercel.json`](vercel.json:1) configuration ensures these aliases work correctly during deployment.
+
+### Additional Configuration Details
+
+- **SPA Routing**: The `rewrites` configuration ensures all paths serve `index.html` for client-side routing
+- **Cache Headers**: Optimized caching for static assets (1 year for immutable assets)
+- **Environment**: Sets `NODE_ENV` to production for optimal builds
+- **GitHub Integration**: Silent mode disabled for better deployment visibility
 
 ## Deployment Methods
 

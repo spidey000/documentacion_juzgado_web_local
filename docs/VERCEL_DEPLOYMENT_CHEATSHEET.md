@@ -49,7 +49,70 @@ vercel --scope my-team
 
 ## 2. Configuration Files
 
-### vercel.json (Minimal Template)
+### vercel.json for Vite Projects with Path Aliases
+
+When deploying Vite projects that use path aliases (like `@/`, `@components/`, `@utils/`), you need specific configuration to ensure proper build process:
+
+```json
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "devCommand": "npm run dev -- --port $PORT",
+  "framework": {
+    "name": "vite"
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+```
+
+### Why This Configuration Matters for Path Aliases
+
+**Problem**: Without proper Vercel configuration, builds fail with "Could not load" errors for modules using path aliases.
+
+**Solution**: The key configurations that fix path alias issues:
+
+1. **Framework Declaration**:
+   ```json
+   "framework": { "name": "vite" }
+   ```
+   - Tells Vercel to use Vite-specific build optimizations
+   - Ensures path aliases from `vite.config.js` are respected
+
+2. **Static Build Builder**:
+   ```json
+   "builds": [{
+     "src": "package.json",
+     "use": "@vercel/static-build"
+   }]
+   ```
+   - Uses Vercel's static build builder that properly handles Vite projects
+   - Ensures all Vite configurations are applied during build
+
+3. **Explicit Build Settings**:
+   ```json
+   "buildCommand": "npm run build",
+   "outputDirectory": "dist"
+   ```
+   - Explicitly defines build command and output directory
+   - Prevents Vercel from guessing build settings
+
+### vercel.json (Minimal Template - for simple projects)
 ```json
 {
   "version": 2,
@@ -208,6 +271,50 @@ vercel env add DEBUG_MODE
 - [ ] ✅ Custom domain working (if configured)
 
 ## 5. Common Issues & Fixes
+
+### Path Alias Resolution Errors (Vite Projects)
+**Issue**: Build fails with "Could not load @/component" or similar errors
+
+**Symptoms**:
+```
+Could not load @core/pdfProcessor (imported by src/index.js)
+Could not load @components/FileUpload (imported by src/index.js)
+Module not found: Error: Can't resolve '@/utils'
+```
+
+**Fix**:
+1. Add framework declaration to `vercel.json`:
+   ```json
+   "framework": {
+     "name": "vite"
+   }
+   ```
+
+2. Ensure proper build configuration:
+   ```json
+   "builds": [{
+     "src": "package.json",
+     "use": "@vercel/static-build"
+   }]
+   ```
+
+3. Verify your vite.config.js has aliases:
+   ```javascript
+   resolve: {
+     alias: {
+       '@': path.resolve(__dirname, 'src'),
+       '@components': path.resolve(__dirname, 'src/components'),
+       '@core': path.resolve(__dirname, 'src/core'),
+       '@utils': path.resolve(__dirname, 'src/utils')
+     }
+   }
+   ```
+
+4. Clear Vercel cache and redeploy:
+   ```bash
+   vercel rm --cache
+   vercel --prod
+   ```
 
 ### Build Fails
 ```bash
