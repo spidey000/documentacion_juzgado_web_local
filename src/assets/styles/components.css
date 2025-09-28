@@ -1,0 +1,347 @@
+/* Component-specific styles for Juzgado Documentation System */
+
+/* CREAR SUMARIO Button Styles */
+#crear-sumario-btn {
+    position: relative;
+    overflow: hidden;
+}
+
+#crear-sumario-btn:disabled {
+    @apply bg-gray-400 cursor-not-allowed transform-none;
+}
+
+#crear-sumario-btn:not(:disabled):active {
+    transform: scale(0.98);
+}
+
+#crear-sumario-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+#crear-sumario-btn:active::after {
+    width: 300px;
+    height: 300px;
+}
+
+/* Processing Steps Animation */
+.processing-step {
+    @apply flex items-center space-x-3 p-3 rounded-lg bg-gray-50 transition-all duration-300;
+}
+
+.processing-step.completed {
+    @apply bg-green-50 border border-green-200;
+}
+
+.processing-step.active {
+    @apply bg-blue-50 border border-blue-200;
+}
+
+.processing-step.pending {
+    @apply bg-gray-50 opacity-60;
+}
+
+.processing-step-icon {
+    @apply flex-shrink-0 w-5 h-5;
+}
+
+.processing-step-icon.completed {
+    @apply text-green-600;
+}
+
+.processing-step-icon.active {
+    @apply text-blue-600 animate-spin;
+}
+
+.processing-step-icon.pending {
+    @apply text-gray-400;
+}
+
+.processing-step-text {
+    @apply text-sm font-medium text-gray-700;
+}
+
+.processing-step-text.completed {
+    @apply text-green-800;
+}
+
+.processing-step-text.active {
+    @apply text-blue-800;
+}
+
+/* File Organizer Styles */
+.file-organizer-item {
+    @apply flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-move;
+}
+
+.file-organizer-item.dragging {
+    @apply opacity-50 shadow-lg;
+}
+
+.file-organizer-item.drag-over {
+    @apply border-blue-500 bg-blue-50;
+}
+
+.file-organizer-handle {
+    @apply flex-shrink-0 w-6 h-6 text-gray-400 cursor-move hover:text-gray-600;
+}
+
+.file-organizer-info {
+    @apply flex-1 min-w-0 ml-3;
+}
+
+.file-organizer-name {
+    @apply text-sm font-medium text-gray-900 truncate;
+}
+
+.file-organizer-meta {
+    @apply text-xs text-gray-500 mt-1;
+}
+
+.file-organizer-actions {
+    @apply flex-shrink-0 ml-4 flex space-x-2;
+}
+
+/* Description Manager Styles */
+.description-input {
+    @apply w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 resize-none;
+}
+
+.description-input:focus {
+    @apply outline-none ring-2 ring-blue-500 ring-offset-2;
+}
+
+.description-character-count {
+    @apply text-xs text-gray-500 text-right mt-1;
+}
+
+.description-character-count.warning {
+    @apply text-yellow-600;
+}
+
+.description-character-count.error {
+    @apply text-red-600;
+}
+
+/* AI Description Options */
+.ai-option-card {
+    @apply p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors cursor-pointer;
+}
+
+.ai-option-card.selected {
+    @apply border-blue-500 bg-blue-50 ring-2 ring-blue-200;
+}
+
+.ai-option-icon {
+    @apply w-8 h-8 text-gray-400;
+}
+
+.ai-option-card.selected .ai-option-icon {
+    @apply text-blue-600;
+}
+
+/* Index Configuration Styles */
+.index-config-section {
+    @apply p-4 border border-gray-200 rounded-lg bg-gray-50;
+}
+
+.index-preview {
+    @apply mt-4 p-4 bg-white border border-gray-200 rounded-lg font-mono text-sm;
+}
+
+.index-preview-line {
+    @apply py-1 border-b border-gray-100 last:border-0;
+}
+
+/* Results Panel Styles */
+.result-item {
+    @apply flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow;
+}
+
+.result-item-success {
+    @apply border-green-200 bg-green-50;
+}
+
+.result-item-error {
+    @apply border-red-200 bg-red-50;
+}
+
+.result-item-warning {
+    @apply border-yellow-200 bg-yellow-50;
+}
+
+.result-icon {
+    @apply flex-shrink-0 w-8 h-8;
+}
+
+.result-icon-success {
+    @apply text-green-600;
+}
+
+.result-icon-error {
+    @apply text-red-600;
+}
+
+.result-icon-warning {
+    @apply text-yellow-600;
+}
+
+.result-content {
+    @apply flex-1 min-w-0 ml-3;
+}
+
+.result-title {
+    @apply text-sm font-medium text-gray-900 truncate;
+}
+
+.result-description {
+    @apply text-xs text-gray-500 mt-1;
+}
+
+.result-actions {
+    @apply flex-shrink-0 ml-4 flex space-x-2;
+}
+
+/* Download Button Styles */
+.download-btn {
+    @apply inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors;
+}
+
+.download-btn:disabled {
+    @apply bg-gray-400 cursor-not-allowed;
+}
+
+.download-icon {
+    @apply w-4 h-4 mr-2;
+}
+
+/* File Preview in Organizer */
+.file-preview-thumbnail {
+    @apply w-16 h-16 bg-gray-100 rounded flex items-center justify-center;
+}
+
+.file-preview-thumbnail img {
+    @apply max-w-full max-h-full object-contain;
+}
+
+.file-preview-pdf {
+    @apply w-full h-32 bg-gray-100 rounded flex items-center justify-center;
+}
+
+/* Loading States */
+.loading-skeleton {
+    @apply animate-pulse bg-gray-200 rounded;
+}
+
+.loading-skeleton-text {
+    @apply loading-skeleton h-4 w-3/4;
+}
+
+.loading-skeleton-title {
+    @apply loading-skeleton h-6 w-1/2;
+}
+
+/* Toast Notification Variants */
+.toast-custom {
+    @apply fixed bottom-4 right-4 max-w-sm p-4 rounded-lg shadow-lg transform transition-all duration-300;
+}
+
+.toast-with-progress {
+    @apply pb-2;
+}
+
+.toast-progress-bar {
+    @apply absolute bottom-0 left-0 h-1 bg-white bg-opacity-30 rounded-b-lg transition-all duration-300;
+}
+
+/* Responsive Grid Adjustments */
+@media (max-width: 768px) {
+    .file-organizer-item {
+        @apply flex-col items-start space-y-3;
+    }
+    
+    .file-organizer-actions {
+        @apply w-full justify-end space-x-4;
+    }
+    
+    .result-item {
+        @apply flex-col items-start space-y-3;
+    }
+    
+    .result-actions {
+        @apply w-full justify-end space-x-4;
+    }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+    /* Dark mode styles can be added here in the future */
+}
+
+/* Print Styles */
+@media print {
+    .no-print {
+        @apply hidden;
+    }
+    
+    .print-break-before {
+        page-break-before: always;
+    }
+    
+    .print-break-after {
+        page-break-after: always;
+    }
+}
+
+/* Animation for file drop */
+@keyframes fileDropPulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.file-drop-animation {
+    animation: fileDropPulse 0.6s ease-in-out;
+}
+
+/* Accessibility focus indicators */
+.focus-visible\:ring-offset-2:focus-visible {
+    @apply ring-offset-2;
+}
+
+/* High contrast mode indicators */
+@media (forced-colors: active) {
+    .file-organizer-item,
+    .result-item,
+    .ai-option-card {
+        @apply border-2;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .processing-step-icon.active {
+        animation: none;
+    }
+    
+    .file-drop-animation {
+        animation: none;
+    }
+}

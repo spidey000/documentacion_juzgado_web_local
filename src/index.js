@@ -1,25 +1,28 @@
 /**
- * Main entry point for the Client-Side PDF Processor
+ * Main entry point for the Juzgado Documentation System
  * 
  * This file initializes the application and sets up all the
- * necessary components and event listeners.
+ * necessary components and event listeners for the complete
+ * "CREAR SUMARIO" workflow.
  * 
  * @version 1.0.0
- * @author Client-Side PDF Processor Team
  */
 
 // Import core modules
-import { FileUpload } from '@components/FileUpload.js';
-import { PDFViewer } from '@components/PDFViewer.js';
-import { ProcessingQueue } from '@components/ProcessingQueue.js';
-import { ResultsPanel } from '@components/ResultsPanel.js';
-import { PDFProcessor } from '@core/pdfProcessor.js';
-import { OCRValidator } from '@core/ocrValidator.js';
-import { AIDescriber } from '@core/aiDescriber.js';
-import { IndexGenerator } from '@core/indexGenerator.js';
-import { AuditLogger } from '@utils/auditLogger.js';
-import { Toast } from '@utils/toast.js';
-import { EventBus } from '@utils/eventBus.js';
+import { FileUpload } from './components/FileUpload.js';
+import { PDFViewer } from './components/PDFViewer.js';
+import { ProcessingQueue } from './components/ProcessingQueue.js';
+import { ResultsPanel } from './components/ResultsPanel.js';
+import { DocumentManager } from './components/DocumentManager.js';
+import { FileOrganizer } from './components/FileOrganizer.js';
+import { AIDescriptionManager, aiDescriptionManager } from './components/AIDescriptionManager.js';
+import { PDFMerger } from './components/PDFMerger.js';
+import { IndexGenerator } from './components/IndexGenerator.js';
+import { PDFProcessor } from './core/pdfProcessor.js';
+import { OCRValidator } from './core/ocrValidator.js';
+import { AuditLogger } from './utils/auditLogger.js';
+import { Toast } from './utils/toast.js';
+import { EventBus } from './utils/eventBus.js';
 
 // Import styles
 import './assets/styles/main.css';
@@ -28,7 +31,7 @@ import './assets/styles/main.css';
  * Main Application Class
  * 
  * Manages the entire application lifecycle and coordinates
- * between different components.
+ * between different components for the complete workflow.
  */
 class App {
   constructor() {
@@ -38,12 +41,28 @@ class App {
       processing: false,
       processedFiles: [],
       excludedFiles: [],
+      organizedFiles: [],
       settings: {
         validateOCR: true,
         mergePDFs: false,
         generateAIDescription: false,
         generateIndex: false,
+        descriptionMode: 'none',
+        sortOrder: 'name',
+        sortDirection: 'asc'
       },
+      workflow: {
+        currentStep: 0,
+        totalSteps: 6,
+        steps: [
+          'Subir archivos',
+          'Organizar documentos',
+          'Generar descripciones',
+          'Configurar índice',
+          'Procesar documentos',
+          'Generar sumario final'
+        ]
+      }
     };
 
     // Initialize components
@@ -54,8 +73,6 @@ class App {
     
     // Log application start
     AuditLogger.info('Application initialized', {
-      version: __APP_VERSION__,
-      name: __APP_NAME__,
       timestamp: new Date().toISOString(),
     });
   }
@@ -67,6 +84,7 @@ class App {
     // Initialize UI components
     this.fileUpload = new FileUpload({
       container: document.getElementById('file-upload-area'),
+      input: document.getElementById('file-input'),
       onFilesSelected: this.handleFilesSelected.bind(this),
     });
 
@@ -76,14 +94,15 @@ class App {
     });
 
     this.processingQueue = new ProcessingQueue({
-      container: document.getElementById('processing-progress'),
+      container: document.getElementById('processing-status'),
       progressBar: document.getElementById('progress-bar'),
       percentageElement: document.getElementById('progress-percentage'),
       taskElement: document.getElementById('current-task'),
+      stepsElement: document.getElementById('processing-steps'),
     });
 
     this.resultsPanel = new ResultsPanel({
-      container: document.getElementById('results-content'),
+      container: document.getElementById('results'),
       processedContainer: document.getElementById('processed-files-list'),
       excludedContainer: document.getElementById('excluded-files-list'),
       downloadsContainer: document.getElementById('download-list'),
@@ -92,11 +111,14 @@ class App {
     // Initialize core processing modules
     this.pdfProcessor = new PDFProcessor();
     this.ocrValidator = new OCRValidator();
-    this.aiDescriber = new AIDescriber();
-    this.indexGenerator = new IndexGenerator();
+    this.pdfMerger = new PDFMerger();
+    this.indexGeneratorComponent = new IndexGenerator();
+
+    // Initialize manager components
+    this.fileOrganizer = new FileOrganizer('file-organizer', []);
+    this.aiDescriptionManager = aiDescriptionManager;
 
     // Initialize utility modules
-    this.auditLogger = AuditLogger;
     this.eventBus = EventBus;
   }
 
@@ -104,34 +126,64 @@ class App {
    * Set up event listeners for the application
    */
   setupEventListeners() {
+    // CREAR SUMARIO button
+    const crearSumarioBtn = document.getElementById('crear-sumario-btn');
+    if (crearSumarioBtn) {
+      crearSumarioBtn.addEventListener('click', () => this.handleCrearSumario());
+    }
+
     // File upload events
-    document.getElementById('clear-files').addEventListener('click', () => {
+    document.getElementById('clear-files')?.addEventListener('click', () => {
       this.clearAllFiles();
     });
 
-    document.getElementById('process-files').addEventListener('click', () => {
-      this.showProcessingOptions();
+    // Sort controls
+    document.getElementById('sort-order')?.addEventListener('change', (e) => {
+      this.state.settings.sortOrder = e.target.value;
+      this.updateFileOrganization();
     });
 
-    // Processing options events
-    document.getElementById('validate-ocr').addEventListener('change', (e) => {
-      this.state.settings.validateOCR = e.target.checked;
+    document.getElementById('sort-direction')?.addEventListener('change', (e) => {
+      this.state.settings.sortDirection = e.target.value;
+      this.updateFileOrganization();
     });
 
-    document.getElementById('merge-pdfs').addEventListener('change', (e) => {
-      this.state.settings.mergePDFs = e.target.checked;
+    // Description mode events
+    document.querySelectorAll('input[name="description-mode"]').forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        this.state.settings.descriptionMode = e.target.value;
+        this.state.settings.generateAIDescription = e.target.value === 'ai';
+        
+        // Show/hide AI options
+        const aiOptions = document.getElementById('ai-description-options');
+        if (aiOptions) {
+          aiOptions.classList.toggle('hidden', e.target.value !== 'ai');
+        }
+      });
     });
 
-    document.getElementById('ai-description').addEventListener('change', (e) => {
-      this.state.settings.generateAIDescription = e.target.checked;
+    // AI description options
+    document.getElementById('ai-style')?.addEventListener('change', (e) => {
+      this.aiDescriptionManager.updateConfig({ style: e.target.value });
     });
 
-    document.getElementById('generate-index').addEventListener('change', (e) => {
+    document.getElementById('ai-max-length')?.addEventListener('change', (e) => {
+      this.aiDescriptionManager.updateConfig({ maxLength: parseInt(e.target.value) });
+    });
+
+    // Index configuration events
+    document.getElementById('generate-index')?.addEventListener('change', (e) => {
       this.state.settings.generateIndex = e.target.checked;
+      
+      // Show/hide index format options
+      const indexOptions = document.getElementById('index-format-options');
+      if (indexOptions) {
+        indexOptions.classList.toggle('hidden', !e.target.checked);
+      }
     });
 
-    document.getElementById('start-processing').addEventListener('click', () => {
-      this.startProcessing();
+    document.getElementById('merge-pdfs')?.addEventListener('change', (e) => {
+      this.state.settings.mergePDFs = e.target.checked;
     });
 
     // Results tab events
@@ -141,21 +193,8 @@ class App {
       });
     });
 
-    // Audit log events
-    document.getElementById('clear-audit').addEventListener('click', () => {
-      this.clearAuditLog();
-    });
-
-    document.getElementById('export-audit').addEventListener('click', () => {
-      this.exportAuditLog();
-    });
-
-    document.getElementById('log-filter').addEventListener('change', (e) => {
-      this.filterAuditLog(e.target.value);
-    });
-
     // PDF viewer modal events
-    document.getElementById('close-pdf-viewer').addEventListener('click', () => {
+    document.getElementById('close-pdf-viewer')?.addEventListener('click', () => {
       this.closePDFViewer();
     });
 
@@ -170,10 +209,10 @@ class App {
     const mobileMenuButton = document.querySelector('[aria-controls="mobile-menu"]');
     const mobileMenu = document.getElementById('mobile-menu');
     
-    mobileMenuButton.addEventListener('click', () => {
+    mobileMenuButton?.addEventListener('click', () => {
       const expanded = mobileMenuButton.getAttribute('aria-expanded') === 'true';
       mobileMenuButton.setAttribute('aria-expanded', !expanded);
-      mobileMenu.classList.toggle('hidden');
+      mobileMenu?.classList.toggle('hidden');
     });
 
     // Navigation smooth scroll
@@ -191,27 +230,38 @@ class App {
     });
 
     // Listen for custom events
-    this.eventBus.on('file:preview', this.handleFilePreview.bind(this));
-    this.eventBus.on('processing:complete', this.handleProcessingComplete.bind(this));
-    this.eventBus.on('processing:error', this.handleProcessingError.bind(this));
-    this.eventBus.on('toast:show', this.showToast.bind(this));
+    this.eventBus
+      .on('file:preview', this.handleFilePreview.bind(this))
+      .on('processing:complete', this.handleProcessingComplete.bind(this))
+      .on('processing:error', this.handleProcessingError.bind(this))
+      .on('toast:show', this.showToast.bind(this))
+      .on('files:organized', this.handleFilesOrganized.bind(this))
+      .on('descriptions:generated', this.handleDescriptionsGenerated.bind(this))
+      .on('merge:completed', this.handleMergeCompleted.bind(this))
+      .on('index:generated', this.handleIndexGenerated.bind(this));
   }
 
   /**
    * Handle files selected from file upload
-   * @param {File[]} files - Array of selected files
    */
   handleFilesSelected(files) {
+    // Add files to state
     this.state.files = [...this.state.files, ...files];
+    
+    // Update UI
     this.updateFileList();
+    this.showSectionsAfterUpload();
     
-    // Enable process button if we have files
-    const processButton = document.getElementById('process-files');
-    processButton.disabled = this.state.files.length === 0;
+    // Enable CREAR SUMARIO button
+    const crearSumarioBtn = document.getElementById('crear-sumario-btn');
+    if (crearSumarioBtn) {
+      crearSumarioBtn.disabled = false;
+      document.querySelector('#crear-sumario-btn + p').classList.add('hidden');
+    }
     
-    Toast.success(`${files.length} file(s) added successfully`);
+    Toast.success(`${files.length} archivo(s) agregado(s) exitosamente`);
     
-    this.auditLogger.info('Files selected', {
+    AuditLogger.info('Files selected', {
       count: files.length,
       totalSize: files.reduce((sum, file) => sum + file.size, 0),
       fileNames: files.map(f => f.name),
@@ -219,13 +269,545 @@ class App {
   }
 
   /**
-   * Update the file list display
+   * Show sections after files are uploaded
+   */
+  showSectionsAfterUpload() {
+    // Show organization section
+    const orgSection = document.getElementById('organization');
+    if (orgSection) {
+      orgSection.classList.remove('hidden');
+    }
+
+    // Show description section
+    const descSection = document.getElementById('description');
+    if (descSection) {
+      descSection.classList.remove('hidden');
+    }
+
+    // Show index section
+    const indexSection = document.getElementById('index');
+    if (indexSection) {
+      indexSection.classList.remove('hidden');
+    }
+
+    // Initialize file organizer with uploaded files
+    this.fileOrganizer.updateFiles(this.state.files);
+  }
+
+  /**
+   * Update file organization based on settings
+   */
+  updateFileOrganization() {
+    if (this.state.files.length === 0) return;
+
+    // Sort files based on settings
+    const sortedFiles = [...this.state.files];
+    const { sortOrder, sortDirection } = this.state.settings;
+
+    switch (sortOrder) {
+      case 'name':
+        sortedFiles.sort((a, b) => {
+          const result = a.name.localeCompare(b.name);
+          return sortDirection === 'asc' ? result : -result;
+        });
+        break;
+      case 'date':
+        sortedFiles.sort((a, b) => {
+          const result = (a.lastModified || 0) - (b.lastModified || 0);
+          return sortDirection === 'asc' ? result : -result;
+        });
+        break;
+      case 'size':
+        sortedFiles.sort((a, b) => {
+          const result = a.size - b.size;
+          return sortDirection === 'asc' ? result : -result;
+        });
+        break;
+      case 'custom':
+        // Keep custom order from file organizer
+        break;
+    }
+
+    this.state.organizedFiles = sortedFiles;
+    
+    // Update file organizer
+    this.fileOrganizer.updateFiles(sortedFiles);
+  }
+
+  /**
+   * Handle CREAR SUMARIO button click
+   */
+  async handleCrearSumario() {
+    if (this.state.files.length === 0) {
+      Toast.error('Por favor sube al menos un archivo PDF');
+      return;
+    }
+
+    if (this.state.processing) {
+      Toast.warning('Ya se está procesando un sumario');
+      return;
+    }
+
+    try {
+      // Start processing
+      this.state.processing = true;
+      this.state.workflow.currentStep = 0;
+
+      // Show processing status
+      const processingSection = document.getElementById('processing-status');
+      if (processingSection) {
+        processingSection.classList.remove('hidden');
+        processingSection.scrollIntoView({ behavior: 'smooth' });
+      }
+
+      // Initialize processing queue
+      this.processingQueue.start(this.state.workflow.totalSteps);
+
+      // Execute workflow steps
+      await this.executeWorkflow();
+
+    } catch (error) {
+      console.error('Workflow error:', error);
+      Toast.error('Error en el procesamiento: ' + error.message);
+      
+      AuditLogger.error('Workflow failed', {
+        error: error.message,
+        stack: error.stack,
+      });
+      
+    } finally {
+      this.state.processing = false;
+      this.processingQueue.complete();
+    }
+  }
+
+  /**
+   * Execute the complete workflow
+   */
+  async executeWorkflow() {
+    AuditLogger.info('Starting CREAR SUMARIO workflow', {
+      fileCount: this.state.files.length,
+      settings: this.state.settings
+    });
+
+    // Step 1: Validate and prepare files
+    await this.processStep(1, 'Validando archivos...', async () => {
+      await this.validateAndPrepareFiles();
+    });
+
+    // Step 2: Organize files
+    await this.processStep(2, 'Organizando documentos...', async () => {
+      await this.organizeDocuments();
+    });
+
+    // Step 3: Generate descriptions
+    if (this.state.settings.generateAIDescription || this.state.settings.descriptionMode !== 'none') {
+      await this.processStep(3, 'Generando descripciones...', async () => {
+        await this.generateDescriptions();
+      });
+    }
+
+    // Step 4: Process documents (OCR, text extraction)
+    await this.processStep(4, 'Procesando documentos...', async () => {
+      await this.processDocuments();
+    });
+
+    // Step 5: Generate index
+    if (this.state.settings.generateIndex) {
+      await this.processStep(5, 'Generando índice...', async () => {
+        await this.generateIndex();
+      });
+    }
+
+    // Step 6: Merge PDFs and create final sumario
+    if (this.state.settings.mergePDFs || this.state.settings.generateIndex) {
+      await this.processStep(6, 'Creando sumario final...', async () => {
+        await this.createFinalSumario();
+      });
+    }
+
+    // Show results
+    this.displayResults();
+
+    Toast.success('¡Sumario creado exitosamente!');
+    
+    AuditLogger.success('CREAR SUMARIO workflow completed', {
+      processedFiles: this.state.processedFiles.length,
+      excludedFiles: this.state.excludedFiles.length,
+      settings: this.state.settings
+    });
+  }
+
+  /**
+   * Process a single workflow step
+   */
+  async processStep(stepNumber, description, taskFunction) {
+    this.state.workflow.currentStep = stepNumber;
+    
+    // Update progress
+    const progress = (stepNumber / this.state.workflow.totalSteps) * 100;
+    this.processingQueue.updateProgress(progress, description);
+
+    // Add step to processing steps list
+    this.addProcessingStep(stepNumber, description, 'active');
+
+    try {
+      await taskFunction();
+      
+      // Mark step as completed
+      this.updateProcessingStep(stepNumber, 'completed');
+      
+      AuditLogger.info(`Workflow step ${stepNumber} completed`, { description });
+      
+    } catch (error) {
+      // Mark step as failed
+      this.updateProcessingStep(stepNumber, 'failed');
+      
+      AuditLogger.error(`Workflow step ${stepNumber} failed`, {
+        description,
+        error: error.message
+      });
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Add processing step to UI
+   */
+  addProcessingStep(stepNumber, description, status = 'pending') {
+    const stepsContainer = document.getElementById('processing-steps');
+    if (!stepsContainer) return;
+
+    const stepId = `step-${stepNumber}`;
+    let stepElement = document.getElementById(stepId);
+    
+    if (!stepElement) {
+      stepElement = document.createElement('div');
+      stepElement.id = stepId;
+      stepElement.className = 'processing-step';
+      stepsContainer.appendChild(stepElement);
+    }
+
+    stepElement.className = `processing-step ${status}`;
+    stepElement.innerHTML = `
+      <div class="processing-step-icon ${status}">
+        ${this.getStepIcon(status)}
+      </div>
+      <div class="processing-step-text">${description}</div>
+    `;
+  }
+
+  /**
+   * Update processing step status
+   */
+  updateProcessingStep(stepNumber, status) {
+    const stepElement = document.getElementById(`step-${stepNumber}`);
+    if (!stepElement) return;
+
+    stepElement.className = `processing-step ${status}`;
+    
+    const icon = stepElement.querySelector('.processing-step-icon');
+    if (icon) {
+      icon.className = `processing-step-icon ${status}`;
+      icon.innerHTML = this.getStepIcon(status);
+    }
+  }
+
+  /**
+   * Get icon for step status
+   */
+  getStepIcon(status) {
+    switch (status) {
+      case 'completed':
+        return '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
+      case 'active':
+        return '<svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>';
+      case 'failed':
+        return '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
+      default:
+        return '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+    }
+  }
+
+  /**
+   * Validate and prepare files for processing
+   */
+  async validateAndPrepareFiles() {
+    const validFiles = [];
+    const excludedFiles = [];
+
+    for (const file of this.state.files) {
+      try {
+        // Check if file is PDF
+        if (file.type !== 'application/pdf') {
+          excludedFiles.push({
+            file,
+            reason: 'No es un archivo PDF'
+          });
+          continue;
+        }
+
+        // Check file size (limit: 50MB)
+        if (file.size > 50 * 1024 * 1024) {
+          excludedFiles.push({
+            file,
+            reason: 'Archivo demasiado grande (máximo 50MB)'
+          });
+          continue;
+        }
+
+        // Validate OCR if enabled
+        if (this.state.settings.validateOCR) {
+          const hasOCR = await this.ocrValidator.validate(file);
+          if (!hasOCR) {
+            excludedFiles.push({
+              file,
+              reason: 'No se encontró texto searchable'
+            });
+            continue;
+          }
+        }
+
+        // Add to valid files
+        validFiles.push({
+          ...file,
+          id: this.generateFileId(),
+          status: 'pending'
+        });
+
+      } catch (error) {
+        excludedFiles.push({
+          file,
+          reason: `Error de validación: ${error.message}`
+        });
+      }
+    }
+
+    this.state.validatedFiles = validFiles;
+    this.state.excludedFiles = excludedFiles;
+
+    AuditLogger.info('Files validated', {
+      validCount: validFiles.length,
+      excludedCount: excludedFiles.length
+    });
+  }
+
+  /**
+   * Organize documents based on user preferences
+   */
+  async organizeDocuments() {
+    // Apply sorting
+    this.updateFileOrganization();
+    
+    // Get organized files from file organizer
+    const organizedFiles = this.fileOrganizer.getFileOrder().map(id => 
+      this.state.validatedFiles.find(f => f.id === id)
+    ).filter(Boolean);
+
+    this.state.organizedFiles = organizedFiles;
+
+    AuditLogger.info('Documents organized', {
+      criteria: this.state.settings.sortOrder,
+      direction: this.state.settings.sortDirection,
+      fileCount: organizedFiles.length
+    });
+  }
+
+  /**
+   * Generate descriptions for documents
+   */
+  async generateDescriptions() {
+    const { descriptionMode } = this.state.settings;
+    
+    if (descriptionMode === 'none') return;
+
+    // Update AI description manager with files
+    this.aiDescriptionManager.addFiles(this.state.organizedFiles);
+
+    // Generate descriptions based on mode
+    const result = await this.aiDescriptionManager.generateDescriptions(
+      this.state.organizedFiles,
+      descriptionMode
+    );
+
+    // Update files with descriptions
+    result.descriptions && Object.entries(result.descriptions).forEach(([fileId, description]) => {
+      const file = this.state.organizedFiles.find(f => f.id === fileId);
+      if (file) {
+        file.description = description;
+        file.descriptionMode = descriptionMode;
+      }
+    });
+
+    AuditLogger.info('Descriptions generated', {
+      mode: descriptionMode,
+      fileCount: this.state.organizedFiles.length
+    });
+  }
+
+  /**
+   * Process documents (extract text, etc.)
+   */
+  async processDocuments() {
+    const processedFiles = [];
+
+    for (let i = 0; i < this.state.organizedFiles.length; i++) {
+      const file = this.state.organizedFiles[i];
+      
+      try {
+        // Extract text content
+        const textContent = await this.pdfProcessor.extractText(file);
+        
+        // Get page count
+        const pageCount = await this.pdfProcessor.getPageCount(file);
+        
+        // Add to processed files
+        processedFiles.push({
+          ...file,
+          textContent,
+          pageCount,
+          processedAt: new Date().toISOString()
+        });
+
+      } catch (error) {
+        console.error(`Error processing ${file.name}:`, error);
+        
+        // Add to excluded files
+        this.state.excludedFiles.push({
+          file,
+          reason: `Error de procesamiento: ${error.message}`
+        });
+      }
+    }
+
+    this.state.processedFiles = processedFiles;
+
+    AuditLogger.info('Documents processed', {
+      processedCount: processedFiles.length,
+      excludedCount: this.state.excludedFiles.length
+    });
+  }
+
+  /**
+   * Generate index for documents
+   */
+  async generateIndex() {
+    const indexData = {
+      title: 'Índice de Documentos',
+      generatedAt: new Date().toISOString(),
+      entries: this.state.processedFiles.map((file, index) => ({
+        id: file.id,
+        fileName: file.name,
+        description: file.description || file.name,
+        startPage: 1, // Will be updated after merging
+        pageCount: file.pageCount
+      }))
+    };
+
+    // Generate index using index generator component
+    const generatedIndex = await this.indexGeneratorComponent.generate(indexData);
+    
+    this.state.generatedIndex = generatedIndex;
+
+    AuditLogger.info('Index generated', {
+      entryCount: indexData.entries.length
+    });
+  }
+
+  /**
+   * Create final sumario (merge PDFs if needed)
+   */
+  async createFinalSumario() {
+    const downloads = [];
+
+    // If merging is enabled
+    if (this.state.settings.mergePDFs && this.state.processedFiles.length > 1) {
+      try {
+        // Merge PDFs
+        const mergedPDF = await this.pdfMerger.mergePDFs(
+          this.state.processedFiles.map(f => f.file),
+          {
+            generateTOC: this.state.settings.generateIndex,
+            addBookmarks: true,
+            maintainPageNumbering: true
+          }
+        );
+
+        // Create download
+        const mergedBlob = new Blob([mergedPDF], { type: 'application/pdf' });
+        downloads.push({
+          name: 'sumario_completo.pdf',
+          blob: mergedBlob,
+          description: 'Todos los documentos unidos en un solo PDF'
+        });
+
+        AuditLogger.info('PDFs merged successfully');
+
+      } catch (error) {
+        console.error('Error merging PDFs:', error);
+        Toast.error('Error al unir los PDFs');
+      }
+    }
+
+    // Add individual processed files
+    this.state.processedFiles.forEach(file => {
+      downloads.push({
+        name: file.name,
+        blob: file.file,
+        description: file.description || 'Documento individual'
+      });
+    });
+
+    // Add generated index if available
+    if (this.state.generatedIndex) {
+      const indexBlob = new Blob([this.state.generatedIndex.content], { 
+        type: this.state.generatedIndex.contentType 
+      });
+      
+      downloads.push({
+        name: 'indice.pdf',
+        blob: indexBlob,
+        description: 'Índice de documentos'
+      });
+    }
+
+    this.state.downloads = downloads;
+  }
+
+  /**
+   * Display final results
+   */
+  displayResults() {
+    // Show results section
+    const resultsSection = document.getElementById('results');
+    if (resultsSection) {
+      resultsSection.classList.remove('hidden');
+      resultsSection.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Display results in results panel
+    this.resultsPanel.displayResults({
+      processed: this.state.processedFiles,
+      excluded: this.state.excludedFiles,
+      downloads: this.state.downloads || []
+    });
+
+    AuditLogger.info('Results displayed', {
+      processedCount: this.state.processedFiles.length,
+      excludedCount: this.state.excludedFiles.length,
+      downloadCount: this.state.downloads?.length || 0
+    });
+  }
+
+  /**
+   * Update file list display
    */
   updateFileList() {
     const fileList = document.getElementById('file-list');
     const selectedFiles = document.getElementById('selected-files');
     
-    if (this.state.files.length > 0) {
+    if (this.state.files.length > 0 && fileList && selectedFiles) {
       fileList.classList.remove('hidden');
       
       selectedFiles.innerHTML = this.state.files.map((file, index) => `
@@ -248,218 +830,78 @@ class App {
           </div>
         </li>
       `).join('');
-    } else {
+    } else if (fileList) {
       fileList.classList.add('hidden');
     }
   }
 
   /**
    * Remove a file from the list
-   * @param {number} index - Index of file to remove
    */
   removeFile(index) {
     const removedFile = this.state.files[index];
     this.state.files.splice(index, 1);
     this.updateFileList();
     
-    // Disable process button if no files
-    const processButton = document.getElementById('process-files');
-    processButton.disabled = this.state.files.length === 0;
+    // Hide sections if no files
+    if (this.state.files.length === 0) {
+      this.hideSections();
+      
+      // Disable CREAR SUMARIO button
+      const crearSumarioBtn = document.getElementById('crear-sumario-btn');
+      if (crearSumarioBtn) {
+        crearSumarioBtn.disabled = true;
+        document.querySelector('#crear-sumario-btn + p').classList.remove('hidden');
+      }
+    }
     
-    Toast.info(`Removed ${removedFile.name}`);
+    Toast.info(`Eliminado: ${removedFile.name}`);
     
-    this.auditLogger.info('File removed', {
+    AuditLogger.info('File removed', {
       fileName: removedFile.name,
       remainingFiles: this.state.files.length,
     });
   }
 
   /**
-   * Clear all files from the list
+   * Hide sections when no files
+   */
+  hideSections() {
+    const sections = ['organization', 'description', 'index'];
+    sections.forEach(id => {
+      const section = document.getElementById(id);
+      if (section) {
+        section.classList.add('hidden');
+      }
+    });
+  }
+
+  /**
+   * Clear all files
    */
   clearAllFiles() {
     if (this.state.files.length === 0) return;
     
-    this.state.files = [];
-    this.updateFileList();
-    
-    // Disable process button
-    const processButton = document.getElementById('process-files');
-    processButton.disabled = true;
-    
-    Toast.info('All files cleared');
-    
-    this.auditLogger.info('All files cleared');
-  }
-
-  /**
-   * Show processing options section
-   */
-  showProcessingOptions() {
-    document.getElementById('process').classList.remove('hidden');
-    document.getElementById('process').scrollIntoView({ behavior: 'smooth' });
-    
-    this.auditLogger.info('Processing options shown');
-  }
-
-  /**
-   * Start processing files
-   */
-  async startProcessing() {
-    if (this.state.files.length === 0) {
-      Toast.error('No files to process');
-      return;
-    }
-    
-    if (this.state.processing) {
-      Toast.warning('Processing already in progress');
-      return;
-    }
-    
-    this.state.processing = true;
-    
-    // Show results section
-    document.getElementById('results').classList.remove('hidden');
-    document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
-    
-    // Start processing
-    this.processingQueue.start(this.state.files.length);
-    
-    this.auditLogger.info('Processing started', {
-      fileCount: this.state.files.length,
-      settings: this.state.settings,
-    });
-    
-    try {
-      // Process files based on settings
-      const results = await this.processFiles();
+    if (confirm('¿Estás seguro de que quieres eliminar todos los archivos?')) {
+      this.state.files = [];
+      this.updateFileList();
+      this.hideSections();
       
-      // Handle results
-      this.handleResults(results);
-      
-      Toast.success('Processing completed successfully');
-      
-    } catch (error) {
-      console.error('Processing error:', error);
-      Toast.error('Processing failed: ' + error.message);
-      
-      this.auditLogger.error('Processing failed', {
-        error: error.message,
-        stack: error.stack,
-      });
-      
-    } finally {
-      this.state.processing = false;
-      this.processingQueue.complete();
-    }
-  }
-
-  /**
-   * Process all files based on settings
-   * @returns {Promise<Object>} Processing results
-   */
-  async processFiles() {
-    const results = {
-      processed: [],
-      excluded: [],
-      merged: null,
-      index: null,
-    };
-    
-    for (let i = 0; i < this.state.files.length; i++) {
-      const file = this.state.files[i];
-      
-      try {
-        this.processingQueue.updateTask(`Processing ${file.name}...`, (i / this.state.files.length) * 100);
-        
-        // Check if file is PDF
-        if (file.type !== 'application/pdf') {
-          results.excluded.push({
-            file,
-            reason: 'Not a PDF file',
-          });
-          continue;
-        }
-        
-        // Validate OCR if enabled
-        if (this.state.settings.validateOCR) {
-          const hasOCR = await this.ocrValidator.validate(file);
-          if (!hasOCR) {
-            results.excluded.push({
-              file,
-              reason: 'No searchable text content found',
-            });
-            continue;
-          }
-        }
-        
-        // Extract text content
-        const textContent = await this.pdfProcessor.extractText(file);
-        
-        // Generate AI description if enabled
-        let description = null;
-        if (this.state.settings.generateAIDescription && textContent) {
-          description = await this.aiDescriber.generateDescription(textContent);
-        }
-        
-        results.processed.push({
-          file,
-          textContent,
-          description,
-          pageCount: await this.pdfProcessor.getPageCount(file),
-        });
-        
-      } catch (error) {
-        console.error(`Error processing ${file.name}:`, error);
-        results.excluded.push({
-          file,
-          reason: error.message,
-        });
+      // Disable CREAR SUMARIO button
+      const crearSumarioBtn = document.getElementById('crear-sumario-btn');
+      if (crearSumarioBtn) {
+        crearSumarioBtn.disabled = true;
+        document.querySelector('#crear-sumario-btn + p').classList.remove('hidden');
       }
+      
+      Toast.info('Todos los archivos han sido eliminados');
+      
+      AuditLogger.info('All files cleared');
     }
-    
-    // Merge PDFs if enabled
-    if (this.state.settings.mergePDFs && results.processed.length > 1) {
-      this.processingQueue.updateTask('Merging PDFs...', 90);
-      results.merged = await this.pdfProcessor.mergePDFs(
-        results.processed.map(p => p.file)
-      );
-    }
-    
-    // Generate index if enabled
-    if (this.state.settings.generateIndex && results.processed.length > 0) {
-      this.processingQueue.updateTask('Generating index...', 95);
-      results.index = await this.indexGenerator.generate(results.processed);
-    }
-    
-    return results;
-  }
-
-  /**
-   * Handle processing results
-   * @param {Object} results - Processing results
-   */
-  handleResults(results) {
-    this.state.processedFiles = results.processed;
-    this.state.excludedFiles = results.excluded;
-    
-    // Display results
-    this.resultsPanel.displayResults(results);
-    
-    // Show audit log
-    document.getElementById('audit').classList.remove('hidden');
-    
-    this.auditLogger.info('Processing completed', {
-      processedCount: results.processed.length,
-      excludedCount: results.excluded.length,
-      merged: !!results.merged,
-      index: !!results.index,
-    });
   }
 
   /**
    * Switch results tab
-   * @param {string} tabName - Tab name to switch to
    */
   switchResultsTab(tabName) {
     // Update tab buttons
@@ -486,14 +928,13 @@ class App {
 
   /**
    * Handle file preview request
-   * @param {File} file - File to preview
    */
   handleFilePreview(file) {
     if (file.type === 'application/pdf') {
       this.pdfViewer.loadFile(file);
-      document.getElementById('pdf-viewer-modal').classList.remove('hidden');
+      document.getElementById('pdf-viewer-modal')?.classList.remove('hidden');
     } else {
-      Toast.error('Preview only available for PDF files');
+      Toast.error('Vista previa solo disponible para archivos PDF');
     }
   }
 
@@ -501,84 +942,54 @@ class App {
    * Close PDF viewer modal
    */
   closePDFViewer() {
-    document.getElementById('pdf-viewer-modal').classList.add('hidden');
+    document.getElementById('pdf-viewer-modal')?.classList.add('hidden');
     this.pdfViewer.clear();
   }
 
   /**
-   * Handle processing completion
-   * @param {Object} data - Completion data
+   * Event handlers for component events
    */
+  handleFilesOrganized(data) {
+    this.state.organizedFiles = data.files;
+    AuditLogger.info('Files organized via drag and drop', data);
+  }
+
+  handleDescriptionsGenerated(data) {
+    Toast.success(`${data.fileCount} descripciones generadas`);
+    AuditLogger.info('Descriptions generated', data);
+  }
+
+  handleMergeCompleted(data) {
+    Toast.success('PDFs unidos exitosamente');
+    AuditLogger.info('PDF merge completed', data);
+  }
+
+  handleIndexGenerated(data) {
+    Toast.success('Índice generado exitosamente');
+    AuditLogger.info('Index generated', data);
+  }
+
   handleProcessingComplete(data) {
-    this.eventBus.emit('results:update', data);
-    Toast.success('Processing completed successfully');
+    Toast.success('Procesamiento completado');
+    AuditLogger.info('Processing completed', data);
   }
 
-  /**
-   * Handle processing error
-   * @param {Error} error - Error object
-   */
   handleProcessingError(error) {
-    console.error('Processing error:', error);
-    Toast.error('Processing failed: ' + error.message);
+    Toast.error('Error en el procesamiento: ' + error.message);
+    AuditLogger.error('Processing error', { error });
   }
 
-  /**
-   * Show toast notification
-   * @param {string} message - Message to show
-   * @param {string} type - Toast type (success, error, warning, info)
-   */
   showToast(message, type = 'info') {
     Toast.show(message, type);
   }
 
   /**
-   * Clear audit log
+   * Utility methods
    */
-  clearAuditLog() {
-    if (confirm('Are you sure you want to clear the audit log?')) {
-      this.auditLogger.clear();
-      document.getElementById('audit-log-entries').innerHTML = '';
-      Toast.info('Audit log cleared');
-    }
+  generateFileId() {
+    return `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  /**
-   * Export audit log
-   */
-  exportAuditLog() {
-    const log = this.auditLogger.export();
-    const blob = new Blob([JSON.stringify(log, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `audit-log-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    
-    Toast.success('Audit log exported');
-  }
-
-  /**
-   * Filter audit log
-   * @param {string} filter - Filter type
-   */
-  filterAuditLog(filter) {
-    const entries = document.querySelectorAll('.audit-log-entry');
-    entries.forEach(entry => {
-      if (filter === 'all' || entry.classList.contains(filter)) {
-        entry.style.display = 'block';
-      } else {
-        entry.style.display = 'none';
-      }
-    });
-  }
-
-  /**
-   * Format file size in human readable format
-   * @param {number} bytes - File size in bytes
-   * @returns {string} Formatted file size
-   */
   formatFileSize(bytes) {
     if (bytes === 0) return '0 Bytes';
     
@@ -587,23 +998,6 @@ class App {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  }
-
-  /**
-   * Get current application state
-   * @returns {Object} Current state
-   */
-  getState() {
-    return { ...this.state };
-  }
-
-  /**
-   * Update application settings
-   * @param {Object} settings - New settings
-   */
-  updateSettings(settings) {
-    this.state.settings = { ...this.state.settings, ...settings };
-    this.auditLogger.info('Settings updated', { settings: this.state.settings });
   }
 }
 
@@ -615,11 +1009,11 @@ document.addEventListener('DOMContentLoaded', () => {
   window.app = new App();
   
   // Log successful initialization
-  console.log(`${__APP_NAME__} v${__APP_VERSION__} initialized successfully`);
+  console.log('Sistema de Documentación Judicial inicializado exitosamente');
   
   // Add global error handler
   window.addEventListener('error', (event) => {
-    console.error('Global error:', event.error);
+    console.error('Error global:', event.error);
     AuditLogger.error('Global error', {
       message: event.message,
       filename: event.filename,
@@ -631,7 +1025,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Add unhandled promise rejection handler
   window.addEventListener('unhandledrejection', (event) => {
-    console.error('Unhandled promise rejection:', event.reason);
+    console.error('Rechazo de promesa no manejado:', event.reason);
     AuditLogger.error('Unhandled promise rejection', {
       reason: event.reason,
     });

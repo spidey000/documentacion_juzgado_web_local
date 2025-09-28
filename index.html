@@ -1,13 +1,327 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Juzgado Documentation System</title>
-    <meta name="description" content="Document processing system for legal documents">
+    <title>Sistema de Documentación Judicial</title>
+    <meta name="description" content="Sistema de procesamiento de documentos para el juzgado">
+    <link rel="stylesheet" href="/src/assets/styles/main.css">
 </head>
-<body>
-    <div id="root"></div>
+<body class="bg-gray-50">
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-blue-600 text-white px-4 py-2 rounded">
+        Saltar al contenido principal
+    </a>
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <svg class="h-8 w-8 text-blue-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <h1 class="text-xl font-semibold text-gray-900">Sistema de Documentación Judicial</h1>
+                </div>
+                <nav class="hidden md:flex space-x-8">
+                    <a href="#file-upload" class="text-gray-500 hover:text-gray-700">Subir Archivos</a>
+                    <a href="#organization" class="text-gray-500 hover:text-gray-700">Organización</a>
+                    <a href="#description" class="text-gray-500 hover:text-gray-700">Descripciones</a>
+                    <a href="#index" class="text-gray-500 hover:text-gray-700">Índice</a>
+                </nav>
+                <!-- Mobile menu button -->
+                <button class="md:hidden" aria-controls="mobile-menu" aria-expanded="false">
+                    <span class="sr-only">Abrir menú</span>
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <!-- Mobile menu -->
+        <div id="mobile-menu" class="hidden md:hidden">
+            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white border-t">
+                <a href="#file-upload" class="block px-3 py-2 text-gray-500 hover:text-gray-700">Subir Archivos</a>
+                <a href="#organization" class="block px-3 py-2 text-gray-500 hover:text-gray-700">Organización</a>
+                <a href="#description" class="block px-3 py-2 text-gray-500 hover:text-gray-700">Descripciones</a>
+                <a href="#index" class="block px-3 py-2 text-gray-500 hover:text-gray-700">Índice</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- File Upload Section -->
+        <section id="file-upload" class="mb-8" aria-labelledby="file-upload-heading">
+            <h2 id="file-upload-heading" class="text-lg font-semibold text-gray-900 mb-4">Subir Documentos</h2>
+            <div class="card">
+                <div class="card-body">
+                    <div id="file-upload-area" class="file-upload-area" role="button" tabindex="0" aria-label="Área de subida de archivos">
+                        <input type="file" id="file-input" class="hidden" multiple accept=".pdf" aria-label="Seleccionar archivos PDF">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <div class="mt-4">
+                            <p class="text-lg font-medium text-gray-900">Arrastra los archivos PDF aquí</p>
+                            <p class="text-sm text-gray-500 mt-1">o haz clic para seleccionar</p>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">Solo se aceptan archivos PDF</p>
+                    </div>
+                    
+                    <!-- File List -->
+                    <div id="file-list" class="hidden mt-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-sm font-medium text-gray-900">Archivos Seleccionados</h3>
+                            <button id="clear-files" class="text-sm text-red-600 hover:text-red-700">
+                                Limpiar todos
+                            </button>
+                        </div>
+                        <ul id="selected-files" class="space-y-2" role="list"></ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Document Organization Section -->
+        <section id="organization" class="mb-8 hidden" aria-labelledby="organization-heading">
+            <h2 id="organization-heading" class="text-lg font-semibold text-gray-900 mb-4">Organización de Documentos</h2>
+            <div class="card">
+                <div class="card-body">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="form-label">Ordenar por</label>
+                            <select id="sort-order" class="form-input">
+                                <option value="name">Nombre de archivo</option>
+                                <option value="date">Fecha de modificación</option>
+                                <option value="size">Tamaño</option>
+                                <option value="custom">Orden personalizado</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Dirección</label>
+                            <select id="sort-direction" class="form-input">
+                                <option value="asc">Ascendente</option>
+                                <option value="desc">Descendente</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <div id="file-organizer" class="space-y-2" role="list" aria-label="Lista de documentos para organizar"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Description Options Section -->
+        <section id="description" class="mb-8 hidden" aria-labelledby="description-heading">
+            <h2 id="description-heading" class="text-lg font-semibold text-gray-900 mb-4">Opciones de Descripción</h2>
+            <div class="card">
+                <div class="card-body">
+                    <div class="space-y-4">
+                        <div class="flex items-start">
+                            <input type="radio" id="ai-description" name="description-mode" value="ai" class="mt-1">
+                            <label for="ai-description" class="ml-3">
+                                <div class="font-medium text-gray-900">Generar con IA</div>
+                                <p class="text-sm text-gray-500">Usar inteligencia artificial para generar descripciones automáticas</p>
+                            </label>
+                        </div>
+                        <div class="flex items-start">
+                            <input type="radio" id="manual-description" name="description-mode" value="manual" class="mt-1">
+                            <label for="manual-description" class="ml-3">
+                                <div class="font-medium text-gray-900">Descripción manual</div>
+                                <p class="text-sm text-gray-500">Escribir descripciones manualmente para cada documento</p>
+                            </label>
+                        </div>
+                        <div class="flex items-start">
+                            <input type="radio" id="no-description" name="description-mode" value="none" class="mt-1" checked>
+                            <label for="no-description" class="ml-3">
+                                <div class="font-medium text-gray-900">Sin descripción</div>
+                                <p class="text-sm text-gray-500">No incluir descripciones en el sumario</p>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- AI Description Options -->
+                    <div id="ai-description-options" class="hidden mt-6 p-4 bg-gray-50 rounded-lg">
+                        <h3 class="text-sm font-medium text-gray-900 mb-3">Opciones de IA</h3>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="form-label">Estilo de descripción</label>
+                                <select id="ai-style" class="form-input">
+                                    <option value="formal">Formal</option>
+                                    <option value="summary">Resumen</option>
+                                    <option value="detailed">Detallado</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="form-label">Longitud máxima</label>
+                                <input type="number" id="ai-max-length" class="form-input" value="200" min="50" max="500">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Index Configuration Section -->
+        <section id="index" class="mb-8 hidden" aria-labelledby="index-heading">
+            <h2 id="index-heading" class="text-lg font-semibold text-gray-900 mb-4">Configuración de Índice</h2>
+            <div class="card">
+                <div class="card-body">
+                    <div class="space-y-4">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="generate-index" class="form-checkbox">
+                            <label for="generate-index" class="ml-3 text-gray-700">Generar índice automático</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="merge-pdfs" class="form-checkbox">
+                            <label for="merge-pdfs" class="ml-3 text-gray-700">Unir todos los PDFs en uno solo</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="include-page-numbers" class="form-checkbox" checked>
+                            <label for="include-page-numbers" class="ml-3 text-gray-700">Incluir números de página</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="add-bookmarks" class="form-checkbox">
+                            <label for="add-bookmarks" class="ml-3 text-gray-700">Añadir marcadores</label>
+                        </div>
+                    </div>
+                    
+                    <!-- Index Format Options -->
+                    <div id="index-format-options" class="hidden mt-6">
+                        <h3 class="text-sm font-medium text-gray-900 mb-3">Formato del índice</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="form-label">Plantilla</label>
+                                <select id="index-template" class="form-input">
+                                    <option value="standard">Estándar</option>
+                                    <option value="legal">Legal</option>
+                                    <option value="custom">Personalizado</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="form-label">Posición</label>
+                                <select id="index-position" class="form-input">
+                                    <option value="beginning">Al inicio</option>
+                                    <option value="end">Al final</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Create Summary Button -->
+        <div class="mb-8 text-center">
+            <button id="crear-sumario-btn" class="btn btn-lg btn-primary px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200" disabled>
+                <svg class="inline-block w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                CREAR SUMARIO
+            </button>
+            <p class="text-sm text-gray-500 mt-2">Sube al menos un archivo PDF para habilitar</p>
+        </div>
+
+        <!-- Processing Status -->
+        <section id="processing-status" class="mb-8 hidden" aria-labelledby="processing-heading">
+            <h2 id="processing-heading" class="text-lg font-semibold text-gray-900 mb-4">Estado del Procesamiento</h2>
+            <div class="card">
+                <div class="card-body">
+                    <div id="processing-progress">
+                        <div class="flex justify-between items-center mb-2">
+                            <span id="current-task" class="text-sm font-medium text-gray-700">Preparando...</span>
+                            <span id="progress-percentage" class="text-sm font-medium text-gray-700">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div id="progress-bar" class="progress-bar-fill" style="width: 0%"></div>
+                        </div>
+                        <div id="processing-steps" class="mt-4 space-y-2">
+                            <!-- Steps will be dynamically added here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Display -->
+        <section id="results" class="hidden" aria-labelledby="results-heading">
+            <h2 id="results-heading" class="text-lg font-semibold text-gray-900 mb-4">Resultados</h2>
+            <div class="card">
+                <div class="card-header">
+                    <nav class="flex space-x-8" aria-label="Tabs">
+                        <button class="results-tab tab active" data-tab="processed" aria-selected="true">
+                            Procesados
+                        </button>
+                        <button class="results-tab tab" data-tab="excluded" aria-selected="false">
+                            Excluidos
+                        </button>
+                        <button class="results-tab tab" data-tab="downloads" aria-selected="false">
+                            Descargas
+                        </button>
+                    </nav>
+                </div>
+                <div class="card-body">
+                    <!-- Processed Files Tab -->
+                    <div id="processed-tab" class="results-tab-content">
+                        <div id="processed-files-list" class="space-y-2">
+                            <!-- Processed files will be listed here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Excluded Files Tab -->
+                    <div id="excluded-tab" class="results-tab-content hidden">
+                        <div id="excluded-files-list" class="space-y-2">
+                            <!-- Excluded files will be listed here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Downloads Tab -->
+                    <div id="downloads-tab" class="results-tab-content hidden">
+                        <div id="download-list" class="space-y-4">
+                            <!-- Download links will be listed here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+
+    <!-- PDF Viewer Modal -->
+    <div id="pdf-viewer-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="pdf-viewer-title">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="pdf-viewer-title" class="text-lg font-semibold text-gray-900"></h3>
+                <button id="close-pdf-viewer" class="text-gray-400 hover:text-gray-600" aria-label="Cerrar visor">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div id="pdf-viewer-content" class="pdf-viewer">
+                <!-- PDF content will be loaded here -->
+            </div>
+            <div class="pdf-viewer-controls">
+                <div class="flex items-center space-x-4">
+                    <button id="pdf-prev-page" class="btn btn-secondary btn-sm">
+                        Anterior
+                    </button>
+                    <span id="pdf-page-info" class="text-sm text-gray-600"></span>
+                    <button id="pdf-next-page" class="btn btn-secondary btn-sm">
+                        Siguiente
+                    </button>
+                </div>
+                <button id="pdf-zoom-fit" class="btn btn-secondary btn-sm">
+                    Ajustar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
     <script type="module" src="/src/index.js"></script>
 </body>
 </html>
