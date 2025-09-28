@@ -187,5 +187,8 @@ export class Toast {
   }
 }
 
+// Export showToast function for backward compatibility
+export const showToast = Toast.show;
+
 // Export singleton instance for backward compatibility
 export default Toast;
