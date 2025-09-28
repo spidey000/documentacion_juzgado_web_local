@@ -1,0 +1,47 @@
+{
+  "name": "client-side-pdf-processor",
+  "version": "1.0.0",
+  "description": "A 100% browser-based PDF document processor with OCR validation, merging, AI-powered features, and auditability",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src/**/*.js --fix",
+    "format": "prettier --write \"src/**/*.{js,css,html}\"",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage"
+  },
+  "keywords": [
+    "pdf",
+    "client-side",
+    "ocr-validation",
+    "pdf-merging",
+    "ai",
+    "document-processing",
+    "browser-based"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@xenova/transformers": "^2.16.0",
+    "docx": "^8.0.2",
+    "file-saver": "^2.0.5",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^3.4.120"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^0.34.4",
+    "autoprefixer": "^10.4.15",
+    "eslint": "^8.48.0",
+    "jsdom": "^27.0.0",
+    "postcss": "^8.4.29",
+    "prettier": "^3.0.3",
+    "tailwindcss": "^3.3.3",
+    "vite": "^4.4.9",
+    "vitest": "^0.34.4"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
