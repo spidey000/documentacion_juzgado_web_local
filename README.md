@@ -95,6 +95,18 @@ All JavaScript code is unminified and thoroughly commented. The application main
 - Safari 14+
 - Edge 90+
 
+## Deployment
+
+This application can be deployed as a static site to Vercel for easy hosting and sharing. The client-side architecture makes it ideal for static hosting platforms.
+
+### Vercel Deployment
+
+For detailed deployment instructions, see:
+- [Full Vercel Deployment Tutorial](docs/DEPLOY_TO_VERCEL.md) - Step-by-step guide for deploying to Vercel
+- [Vercel Deployment Cheatsheet](docs/VERCEL_DEPLOYMENT_CHEATSHEET.md) - Quick reference for common deployment tasks
+
+The deployment process is straightforward since the application is entirely client-side and doesn't require any backend services or server-side rendering.
+
 ## License
 
 [License information to be added]
